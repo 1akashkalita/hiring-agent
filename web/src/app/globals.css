@@ -96,11 +96,11 @@
   --font-mono: var(--font-mono);
 }
 
-/* legacy tokens — bridged to beige in the next commit */
+/* Legacy var bridge → beige tokens. Removed in Phase 3. */
 :root{
-  --paper:#E7EAEE; --panel:#FFFFFF; --panel-2:#F4F6F8;
-  --ink:#15181D; --ink-soft:#5E6772; --rule:#D3D9DF;
-  --brand:#3A2DD0; --brand-tint:rgba(58,45,208,.08); --brand-ink:#2A1FA8;
+  --paper:var(--background); --panel:var(--popover); --panel-2:#E9E1D2;
+  --ink:var(--foreground); --ink-soft:var(--muted-foreground); --rule:var(--border);
+  --brand:var(--primary); --brand-tint:color-mix(in srgb,var(--primary) 10%,transparent); --brand-ink:#8A655A;
   --good:#2F7A57; --good-tint:rgba(47,122,87,.12);
   --warn:#A9741B; --warn-tint:rgba(169,116,27,.12);
   --bad:#BA413B; --bad-tint:rgba(186,65,59,.11);
@@ -109,10 +109,11 @@
   --good-ink:#15663F; --warn-ink:#7A530F; --bad-ink:#9E2F2A;
   --shadow:0 1px 3px rgba(21,24,29,.10);
 }
+/* Legacy var bridge (dark) → beige tokens. Removed in Phase 3. */
 [data-theme="dark"]{
-  --paper:#0F1320; --panel:#171C2A; --panel-2:#1C2233;
-  --ink:#ECEEF4; --ink-soft:#98A1B2; --rule:#2A3142;
-  --brand:#897CFF; --brand-tint:rgba(137,124,255,.16); --brand-ink:#B7AEFF;
+  --paper:var(--background); --panel:var(--popover); --panel-2:#4a3f39;
+  --ink:var(--foreground); --ink-soft:var(--muted-foreground); --rule:var(--border);
+  --brand:var(--primary); --brand-tint:color-mix(in srgb,var(--primary) 16%,transparent); --brand-ink:var(--primary);
   --good:#4FBE8E; --good-tint:rgba(79,190,142,.15);
   --warn:#E0B24B; --warn-tint:rgba(224,178,75,.15);
   --bad:#E66B63; --bad-tint:rgba(230,107,99,.15);
