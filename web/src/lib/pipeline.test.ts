@@ -18,7 +18,7 @@ const coach = { verdict: "v", fixes: [], boosts: [] };
 
 function deps(overrides = {}) {
   return {
-    settings: { geminiKey: "k", githubToken: null, model: "m", enableGitHub: false },
+    settings: { geminiKey: "k", githubToken: null, model: "m" },
     extractText: vi.fn(async () => "RESUME TEXT"),
     runExtraction: vi.fn(async () => resume),
     runScoring: vi.fn(async () => evaluation),
@@ -32,36 +32,37 @@ function deps(overrides = {}) {
 
 describe("scoreResume", () => {
   it("throws MissingKeyError when no gemini key", async () => {
-    await expect(scoreResume(new ArrayBuffer(0), { ...deps(), settings: { geminiKey: "", githubToken: null, model: "m", enableGitHub: false } })).rejects.toBeInstanceOf(MissingKeyError);
+    await expect(scoreResume(new ArrayBuffer(0), { ...deps(), settings: { geminiKey: "", githubToken: null, model: "m" } })).rejects.toBeInstanceOf(MissingKeyError);
   });
 
-  it("skips extraction and github when github enrichment is disabled", async () => {
-    const d = deps();
+  it("always extracts profiles and enriches when github is present", async () => {
+    const d = deps({
+      fetchGitHub: vi.fn(async () => ({ profile: { username: "octocat" }, projects: [] })),
+    });
     const rec = await scoreResume(new ArrayBuffer(0), d as any);
     expect(rec.id).toBe("id-1");
+    expect(rec.model).toBe("m");
     expect(rec.evaluation.scores.open_source.score).toBe(28);
-    expect(rec.githubSummary).toBeNull();
-    // Extraction exists only to find the GitHub URL, so it's skipped too.
-    expect(d.runExtraction).not.toHaveBeenCalled();
-    expect(d.fetchGitHub).not.toHaveBeenCalled();
-  });
-
-  it("runs github enrichment when enabled and a profile exists", async () => {
-    const d = deps({ settings: { geminiKey: "k", githubToken: "t", model: "m", enableGitHub: true }, fetchGitHub: vi.fn(async () => ({ profile: { username: "octocat" }, projects: [] })) });
-    const rec = await scoreResume(new ArrayBuffer(0), d as any);
     expect(d.runExtraction).toHaveBeenCalledOnce();
-    expect(d.fetchGitHub).toHaveBeenCalledOnce();
+    expect(d.fetchGitHub).toHaveBeenCalledWith("https://github.com/octocat");
     expect(rec.githubSummary?.profile?.username).toBe("octocat");
     expect((d.runScoring as any).mock.calls[0][0]).toContain("=== GITHUB DATA ===");
   });
 
-  it("skips github enrichment when enabled but no github profile is present", async () => {
+  it("skips the github request when extraction finds no profile", async () => {
     const d = deps({
-      settings: { geminiKey: "k", githubToken: "t", model: "m", enableGitHub: true },
       runExtraction: vi.fn(async () => ({ basics: { name: "NoGit", profiles: [] } })),
     });
     const rec = await scoreResume(new ArrayBuffer(0), d as any);
+    expect(d.runExtraction).toHaveBeenCalledOnce();
     expect(d.fetchGitHub).not.toHaveBeenCalled();
+    expect(rec.githubSummary).toBeNull();
+  });
+
+  it("continues scoring when github enrichment fails", async () => {
+    const d = deps({ fetchGitHub: vi.fn(async () => { throw new Error("rate limited"); }) });
+    const rec = await scoreResume(new ArrayBuffer(0), d as any);
+    expect(d.runScoring).toHaveBeenCalledOnce();
     expect(rec.githubSummary).toBeNull();
   });
 });

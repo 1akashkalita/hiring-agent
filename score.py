@@ -63,7 +63,7 @@ def print_evaluation_results(
         total_score -= evaluation.deductions.total
 
     # Ensure total score doesn't exceed maximum possible score
-    max_possible_score = max_score + 20  # 120 (100 categories + 20 bonus)
+    max_possible_score = max_score  # Bonus points can offset gaps, but the rubric totals 100.
     if total_score > max_possible_score:
         total_score = max_possible_score
         print(f"⚠️  Warning: Total score capped at maximum possible value")

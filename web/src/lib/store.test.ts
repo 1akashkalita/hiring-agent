@@ -1,7 +1,9 @@
+// @vitest-environment jsdom
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   saveRun,
+  saveTransientRun,
   listRuns,
   getRun,
   deleteRun,
@@ -42,6 +44,19 @@ describe("store", () => {
     await saveRun(run);
     const got = await getRun("r1");
     expect(got).toEqual(run);
+  });
+
+  it("loads a transient run without adding it to history", async () => {
+    const run = makeRun("sample", 100);
+    await saveTransientRun(run);
+    expect(await getRun("sample")).toEqual(run);
+    expect(await listRuns()).toEqual([]);
+  });
+
+  it("clearAllRuns removes transient runs", async () => {
+    await saveTransientRun(makeRun("sample", 100));
+    await clearAllRuns();
+    expect(await getRun("sample")).toBeUndefined();
   });
 
   it("getRun returns undefined for missing id", async () => {

@@ -1,13 +1,13 @@
 import type { Settings } from "./pipeline";
 import type { StoredSettings } from "./schemas";
-import { DEFAULT_MODEL } from "./gemini";
+import { DEFAULT_MODEL, isSupportedGeminiModel } from "./gemini";
 import { clearAllRuns } from "./store";
 
 const LS_REMEMBER = "ha-remember-keys";
 const LS_GEMINI = "ha-gemini-key";
 const LS_GITHUB = "ha-github-token";
 const LS_MODEL = "ha-model";
-const LS_ENABLE_GH = "ha-enable-github";
+const LEGACY_ENABLE_GH = "ha-enable-github";
 
 // In-memory fallback for secrets when the user opts out of persistence.
 const session: { geminiKey: string; githubToken: string } = {
@@ -35,17 +35,17 @@ function lsRemove(key: string): void {
 
 export function loadSettings(): StoredSettings {
   const rememberKeys = lsGet(LS_REMEMBER) === "true";
-  const model = lsGet(LS_MODEL) ?? DEFAULT_MODEL;
-  const enableGitHub = lsGet(LS_ENABLE_GH) === "true";
+  const storedModel = lsGet(LS_MODEL);
+  const model = storedModel && isSupportedGeminiModel(storedModel) ? storedModel : DEFAULT_MODEL;
   const geminiKey = lsGet(LS_GEMINI) ?? session.geminiKey;
   const githubToken = lsGet(LS_GITHUB) ?? session.githubToken;
-  return { geminiKey, githubToken, model, enableGitHub, rememberKeys };
+  return { geminiKey, githubToken, model, rememberKeys };
 }
 
 export function persistSettings(s: StoredSettings): void {
   lsSet(LS_REMEMBER, s.rememberKeys ? "true" : "false");
-  lsSet(LS_MODEL, s.model);
-  lsSet(LS_ENABLE_GH, s.enableGitHub ? "true" : "false");
+  lsSet(LS_MODEL, isSupportedGeminiModel(s.model) ? s.model : DEFAULT_MODEL);
+  lsRemove(LEGACY_ENABLE_GH);
 
   // Keys always live in the session object; they additionally persist to
   // localStorage only when the user opted in.
@@ -66,7 +66,6 @@ export function toPipelineSettings(s: StoredSettings): Settings {
     geminiKey: s.geminiKey,
     githubToken: s.githubToken === "" ? null : s.githubToken,
     model: s.model,
-    enableGitHub: s.enableGitHub,
   };
 }
 

@@ -58,7 +58,7 @@ Per scoring run, all in the browser, all with the user's key:
 1. **PDF → text** — `pdfjs-dist` extracts selectable text in-browser.
 2. **Text → JSON Resume** — **one** Gemini call in native JSON mode (`responseSchema`) returns the full structured resume. The normalization logic from `transform.py` is ported to TS to map loose model output into the canonical shape.
 3. **GitHub enrichment (optional)** — if a GitHub token is set: fetch profile + repos, classify open-source vs. self-project, and run the LLM project-selection call. Ported from `github.py`.
-4. **Scoring** — one Gemini call returning the `EvaluationData` shape. The fairness-constrained rubric from `resume_evaluation_criteria.jinja` is ported faithfully; category caps (open_source 35, self_projects 30, production 25, technical_skills 10; bonus ≤ 20; total ≤ 120) are enforced client-side like `score.py`.
+4. **Scoring** — one Gemini call returning the `EvaluationData` shape. The fairness-constrained rubric from `resume_evaluation_criteria.jinja` is ported faithfully; category caps (open_source 35, self_projects 30, production 25, technical_skills 10; bonus ≤ 20; total ≤ 100) are enforced client-side like `score.py`.
 5. **Coach** — a separate Gemini call producing the prioritized "biggest score left on the table" fixes plus "small boosts" for already-strong categories.
 
 Typical cost: **~3 Gemini calls per run** (4 with GitHub enrichment).
@@ -98,7 +98,7 @@ Thesis: **a human document (the resume) measured by a precise machine (the score
 ## Screens
 
 1. **Score** — upload (drag-drop PDF), shows key status; runs the pipeline with progress.
-2. **Results** — the verdict (serif), the scorecard (total /120 with delta vs. previous; four category rows with bars, status, and per-category deltas), and the **Coach** section: *Biggest score left on the table* (high-impact fixes, full editorial notes) and *Small boosts* (compact one-liners for strong categories).
+2. **Results** — the verdict (serif), the scorecard (total /100 with delta vs. previous; four category rows with bars, status, and per-category deltas), and the **Coach** section: *Biggest score left on the table* (high-impact fixes, full editorial notes) and *Small boosts* (compact one-liners for strong categories).
 3. **History & Trends** — summary strip (latest, personal best, net change, run count); total-score-over-time line chart on the drafting grid; per-category trend sparklines; and the run history changelog (name + optional label with inline rename, score, delta, View / Diff actions).
 4. **Settings** — Gemini key (required) + optional GitHub token, the "remember key" toggle, theme, and Clear all data.
 

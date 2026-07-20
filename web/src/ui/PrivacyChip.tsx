@@ -1,22 +1,25 @@
 "use client";
-import { HowTo } from "./HowTo";
+
+import { LockIcon } from "@/ui/Icons";
+import { HowTo } from "@/ui/HowTo";
 
 export function PrivacyChip() {
   return (
     <HowTo
       eyebrow="Privacy"
-      title="Private by design — no server, no account."
+      title="Your resume skips our servers."
+      summary="The app is a client-side tool. Here is the exact path your data takes."
+      icon={<LockIcon size={20} />}
       steps={[
-        <>Everything runs in your browser. There&apos;s no backend of ours for your resume to pass through.</>,
-        <>Scoring goes straight from your browser to Google Gemini with your own API key. We never see the key or the resume.</>,
-        <>Your scores and past resumes are saved in this browser&apos;s local cache — not a database.</>,
-        <>Clearing your browser data, or Settings → Clear all data, erases everything instantly.</>,
+        <><strong>PDF reading happens here.</strong> Your browser extracts the text from your PDF locally; the PDF file itself is not uploaded to us.</>,
+        <><strong>Scoring goes directly to Google.</strong> Your browser sends the extracted resume text and your API key directly to Google Gemini. They never pass through a server operated by Fix My Resume.</>,
+        <><strong>Your history stays local.</strong> Score reports, settings, and saved revisions use local browser storage until you clear them.</>,
       ]}
-      foot="No tracking · No sign-in · Works offline once loaded"
+      foot="Gemini scoring requires an internet connection. When a resume includes a GitHub profile, enrichment connects directly from your browser to GitHub's API."
       trigger={(open) => (
-        <button className="chip" aria-haspopup="dialog" onClick={open}>
-          <span className="dot" />100% PRIVATE{" "}
-          <span style={{ textDecoration: "underline", textUnderlineOffset: 2, opacity: 0.85 }}>how?</span>
+        <button type="button" className="privacy-button" aria-haspopup="dialog" onClick={open}>
+          <LockIcon size={14} />
+          <span>100% private</span>
         </button>
       )}
     />

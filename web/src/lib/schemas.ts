@@ -81,6 +81,7 @@ export type RunRecord = {
   parsedResume: JSONResume;
   evaluation: Evaluation;
   coach: Coach;
+  model?: string;
   githubSummary?: GitHubSummary | null;
 };
 
@@ -89,6 +90,5 @@ export type StoredSettings = {
   geminiKey: string;
   githubToken: string;
   model: string;
-  enableGitHub: boolean;
   rememberKeys: boolean;
 };

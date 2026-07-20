@@ -18,9 +18,9 @@ export default function OpengraphImage() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: "#E7EAEE",
+          background: "#F7F9F6",
           padding: "72px 80px",
-          fontFamily: "Georgia, serif",
+          fontFamily: "Arial, sans-serif",
         }}
       >
         <div style={{ display: "flex", alignItems: "center" }}>
@@ -31,11 +31,11 @@ export default function OpengraphImage() {
               justifyContent: "center",
               width: 64,
               height: 64,
-              borderRadius: 14,
-              background: "#3A2DD0",
+              borderRadius: 8,
+              background: "#174C3C",
               color: "#fff",
               fontSize: 40,
-              fontStyle: "italic",
+              fontWeight: 700,
             }}
           >
             F
@@ -46,32 +46,31 @@ export default function OpengraphImage() {
               marginLeft: 22,
               fontSize: 26,
               letterSpacing: "2px",
-              color: "#5E6772",
+              color: "#66736D",
               fontFamily: "monospace",
             }}
           >
-            PRIVATE · IN-BROWSER · FREE
+            LOCAL PDF · DIRECT GEMINI · 100-POINT RUBRIC
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", fontSize: 96, color: "#15181D", lineHeight: 1.05 }}>
-            Fix My&nbsp;<span style={{ fontStyle: "italic" }}>Resume</span>
+          <div style={{ display: "flex", fontSize: 96, fontWeight: 700, color: "#18302A", lineHeight: 1.05 }}>
+            Fix My&nbsp;<span style={{ color: "#174C3C" }}>Resume</span>
           </div>
-          <div style={{ fontSize: 34, color: "#5E6772", marginTop: 18, maxWidth: 900 }}>
-            An explainable, fairness-constrained resume score — plus a coach and trend tracking,
-            running entirely in your browser.
+          <div style={{ fontSize: 34, color: "#66736D", marginTop: 18, maxWidth: 930 }}>
+            An explainable resume score out of 100, prioritized coaching, and revision tracking.
           </div>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", fontSize: 26, color: "#15663F" }}>
+          <div style={{ display: "flex", alignItems: "center", fontSize: 24, color: "#2F6B57" }}>
             <div
-              style={{ width: 14, height: 14, borderRadius: 999, background: "#2F7A57", marginRight: 12 }}
+              style={{ width: 14, height: 14, borderRadius: 999, background: "#2F6B57", marginRight: 12 }}
             />
-            100% private — nothing is uploaded
+            PDF stays local · text goes directly to Gemini
           </div>
-          <div style={{ fontSize: 26, color: "#2A1FA8", fontFamily: "monospace" }}>fixmyresume.dev</div>
+          <div style={{ fontSize: 26, color: "#174C3C", fontFamily: "monospace" }}>fixmyresume.dev</div>
         </div>
       </div>
     ),

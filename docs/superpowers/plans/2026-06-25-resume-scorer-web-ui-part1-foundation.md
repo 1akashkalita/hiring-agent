@@ -869,7 +869,7 @@ git commit -m "feat(web): port transform.py normalization helpers"
 - Create: `web/src/lib/scoring.ts`
 - Test: `web/src/lib/scoring.test.ts`
 
-Mirrors the caps in `score.py`/`evaluator.py`: category maxes 35/30/25/10; total = Σ min(score, max) + bonus − deductions, clamped to [0, 120]. Status bands: ratio ≥ 0.7 → `good`, ≥ 0.4 → `warn`, else `bad`.
+Mirrors the caps in `score.py`/`evaluator.py`: category maxes 35/30/25/10; total = Σ min(score, max) + bonus − deductions, clamped to [0, 100]. Status bands: ratio ≥ 0.7 → `good`, ≥ 0.4 → `warn`, else `bad`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -899,7 +899,7 @@ describe("scoring", () => {
   it("caps a category score at its max", () => {
     expect(cappedCategory(ev, "open_source")).toBe(35);
   });
-  it("computes total = capped categories + bonus - deductions, clamped to 120", () => {
+  it("computes total = capped categories + bonus - deductions, clamped to 100", () => {
     // 35 + 22 + 10 + 9 = 76; +5 -3 = 78
     expect(computeTotal(ev)).toBe(78);
   });
@@ -929,7 +929,7 @@ export const CATEGORY_MAX: Record<CategoryKey, number> = {
   technical_skills: 10,
 };
 
-export const MAX_TOTAL = 120;
+export const MAX_TOTAL = 100;
 export type Status = "good" | "warn" | "bad";
 
 export function cappedCategory(ev: Evaluation, key: CategoryKey): number {
@@ -1313,7 +1313,7 @@ import { GoogleGenAI } from "@google/genai";
 import type { GeminiSchema } from "./prompts";
 import { RateLimitError, ModelOutputError } from "./errors";
 
-export const DEFAULT_MODEL = "gemini-2.5-flash";
+export const DEFAULT_MODEL = "gemini-3.1-flash-lite";
 
 export function makeAI(apiKey: string) {
   return new GoogleGenAI({ apiKey });

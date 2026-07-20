@@ -2,17 +2,27 @@ import { GoogleGenAI } from "@google/genai";
 import type { GeminiSchema } from "./prompts";
 import { RateLimitError, ModelOverloadedError, ModelOutputError, InvalidKeyError, OfflineError } from "./errors";
 
-export const DEFAULT_MODEL = "gemini-2.5-flash";
+export const DEFAULT_MODEL = "gemini-3.1-flash-lite";
 
-// Models offered in the Settings dropdown. Single source of truth — the
-// <select> options, the default, and any validation all read from here.
+// Models offered in the Settings picker. Single source of truth — the
+// options, default, display labels, and validation all read from here.
 // `label` is what the user sees; `id` is the model string sent to Gemini.
 export const GEMINI_MODELS: ReadonlyArray<{ id: string; label: string }> = [
-  { id: "gemini-2.5-pro", label: "gemini-2.5-pro — most accurate" },
-  { id: "gemini-2.5-flash", label: "gemini-2.5-flash — balanced (default)" },
-  { id: "gemini-2.5-flash-lite", label: "gemini-2.5-flash-lite — fastest & cheapest" },
-  { id: "gemini-2.0-flash", label: "gemini-2.0-flash — legacy fallback" },
+  { id: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
+  { id: "gemini-3.1-flash-lite", label: "Gemini 3.1 Flash-Lite" },
+  { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro Preview" },
+  { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
 ];
+
+const GEMINI_MODEL_IDS = new Set(GEMINI_MODELS.map((model) => model.id));
+
+export function isSupportedGeminiModel(model: string): boolean {
+  return GEMINI_MODEL_IDS.has(model);
+}
+
+export function geminiModelLabel(model?: string): string | null {
+  return GEMINI_MODELS.find((candidate) => candidate.id === model)?.label ?? null;
+}
 
 export function makeAI(apiKey: string) {
   return new GoogleGenAI({ apiKey });

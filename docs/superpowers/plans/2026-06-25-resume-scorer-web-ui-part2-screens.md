@@ -364,7 +364,7 @@ describe("settings", () => {
       base({
         geminiKey: "sk-abc",
         githubToken: "ghp_xyz",
-        model: "gemini-2.5-pro",
+        model: "gemini-3.1-pro-preview",
         enableGitHub: true,
         rememberKeys: true,
       }),
@@ -372,7 +372,7 @@ describe("settings", () => {
     expect(localStorage.getItem("ha-gemini-key")).toBe("sk-abc");
     expect(localStorage.getItem("ha-github-token")).toBe("ghp_xyz");
     expect(localStorage.getItem("ha-remember-keys")).toBe("true");
-    expect(localStorage.getItem("ha-model")).toBe("gemini-2.5-pro");
+    expect(localStorage.getItem("ha-model")).toBe("gemini-3.1-pro-preview");
     expect(localStorage.getItem("ha-enable-github")).toBe("true");
     expect(loadSettings().geminiKey).toBe("sk-abc");
   });
@@ -723,7 +723,7 @@ This phase delivers the pure, fully-tested math behind the Trends screen plus a 
     };
   }
 
-  // Totals (capped categories + bonus - deductions, clamped 0..120):
+  // Totals (capped categories + bonus - deductions, clamped 0..100):
   //   A: 35 + 30 + 25 + 10           = 100
   //   B: 10 + 10 + 10 +  5           =  35
   //   C: 20 + 15 + 10 +  8 + 2 bonus =  55
@@ -795,12 +795,12 @@ This phase delivers the pure, fully-tested math behind the Trends screen plus a 
 
   describe("buildLinePath", () => {
     it("maps values to evenly spaced points with padded x and maxY-scaled y", () => {
-      // w=100 h=100 pad=10 maxY=120; innerW=80 over 2 gaps => step 40 => x: 10,50,90
-      // y = h - pad - (v/maxY)*(h-2*pad) = 90 - (v/120)*80
+      // w=100 h=100 pad=10 maxY=100; innerW=80 over 2 gaps => step 40 => x: 10,50,90
+      // y = h - pad - (v/maxY)*(h-2*pad) = 90 - (v/100)*80
       //   v=0   -> 90
-      //   v=60  -> 90 - 40 = 50
-      //   v=120 -> 90 - 80 = 10
-      const out = buildLinePath([0, 60, 120], { w: 100, h: 100, pad: 10, maxY: 120 });
+      //   v=50  -> 90 - 40 = 50
+      //   v=100 -> 90 - 80 = 10
+      const out = buildLinePath([0, 50, 100], { w: 100, h: 100, pad: 10, maxY: 100 });
       expect(out.points).toEqual([
         { x: 10, y: 90 },
         { x: 50, y: 50 },
@@ -810,14 +810,14 @@ This phase delivers the pure, fully-tested math behind the Trends screen plus a 
       expect(out.area).toBe("M10 90 L50 50 L90 10 L90 90 L10 90 Z");
     });
     it("centers a single point at w/2", () => {
-      // x = 50; y = 90 - (42/120)*80 = 90 - 28 = 62
-      const out = buildLinePath([42], { w: 100, h: 100, pad: 10, maxY: 120 });
-      expect(out.points).toEqual([{ x: 50, y: 62 }]);
-      expect(out.line).toBe("M50 62");
-      expect(out.area).toBe("M50 62 L50 90 L50 90 Z");
+      // x = 50; y = 90 - (40/100)*80 = 90 - 32 = 58
+      const out = buildLinePath([40], { w: 100, h: 100, pad: 10, maxY: 100 });
+      expect(out.points).toEqual([{ x: 50, y: 58 }]);
+      expect(out.line).toBe("M50 58");
+      expect(out.area).toBe("M50 58 L50 90 L50 90 Z");
     });
     it("returns empty strings and [] for no values", () => {
-      expect(buildLinePath([], { w: 100, h: 100, pad: 10, maxY: 120 })).toEqual({
+      expect(buildLinePath([], { w: 100, h: 100, pad: 10, maxY: 100 })).toEqual({
         line: "",
         area: "",
         points: [],
@@ -1747,7 +1747,7 @@ export function CategoryRow({ ckey, ev, delta }: { ckey: CategoryKey; ev: Evalua
 **Files:**
 - Create: `web/src/ui/RevisionRail.tsx`
 
-- [ ] **Step 1: Write the component.** Full code below. Props are exactly `{ runs: RunRecord[]; currentId: string }`. It sorts a local copy ascending by `createdAt`, computes each run's `computeTotal` and its delta versus the chronologically-previous run, then renders newest-first (reversed) as the `.runs` commit log. The current run gets `.cur`; only the current run (when it has a previous) shows the dashed `.compare` diff link to `/diff?a=<currentId>&b=<prevId>`. Date formatting is an inline pure formatter (not exported, so no separate unit test). `.delta` / `.up` / `.down` / `.flat` come from global utilities; `Delta` supplies the arrow + number and we append the `<total>/120` as a `.soft` span.
+- [ ] **Step 1: Write the component.** Full code below. Props are exactly `{ runs: RunRecord[]; currentId: string }`. It sorts a local copy ascending by `createdAt`, computes each run's `computeTotal` and its delta versus the chronologically-previous run, then renders newest-first (reversed) as a commit log. The current run gets `.cur`; only the current run (when it has a previous) shows the dashed `.compare` diff link to `/diff?a=<currentId>&b=<prevId>`. Date formatting is an inline pure formatter (not exported, so no separate unit test). `.delta` / `.up` / `.down` / `.flat` come from global utilities; `Delta` supplies the arrow + number and we append the `<total>/100` as a `.soft` span.
 
 ```tsx
 "use client";
@@ -2187,7 +2187,7 @@ This phase replaces the `HistoryScreen` stub with the full History & Trends dash
 **Files:**
 - Create: `web/src/ui/TotalChart.tsx`
 
-- [ ] **Step 1: Write the component.** Full code — coordinate system is chosen so the five y-gridlines land exactly on `buildLinePath`'s node y-positions (same `yForValue` formula, `maxY:120`).
+- [ ] **Step 1: Write the component.** Full code — coordinate system is chosen so the five y-gridlines land exactly on `buildLinePath`'s node y-positions (same `yForValue` formula, `maxY:100`).
 
 ```tsx
 // web/src/ui/TotalChart.tsx
@@ -2198,8 +2198,8 @@ import { buildLinePath } from "../lib/trends";
 const W = 720;
 const H = 260;
 const PAD = 40;
-const MAX_Y = 120;
-const GRID_VALUES = [0, 30, 60, 90, 120];
+const MAX_Y = 100;
+const GRID_VALUES = [0, 20, 40, 60, 80, 100];
 
 // Same vertical mapping buildLinePath uses, so gridlines align with nodes.
 function yForValue(v: number): number {
@@ -2218,7 +2218,7 @@ export function TotalChart({ series }: { series: SeriesPoint[] }) {
   const label =
     series.length === 0
       ? "Total score over time (no runs yet)"
-      : `Total score over time, from ${first} to ${last} out of 120`;
+      : `Total score over time, from ${first} to ${last} out of 100`;
 
   return (
     <svg className="ha-chart" viewBox={`0 0 ${W} ${H + 12}`} role="img" aria-label={label}>
@@ -2534,7 +2534,7 @@ export function HistoryScreen() {
           <div className="ha-stat-lbl">Latest score</div>
           <div className="ha-stat-val">
             {summary.latest}
-            <small>/120</small>
+            <small>/100</small>
           </div>
           <div className="ha-stat-sub">
             <Delta value={lastDelta} suffix="vs. last" />
@@ -2544,7 +2544,7 @@ export function HistoryScreen() {
           <div className="ha-stat-lbl">Personal best</div>
           <div className="ha-stat-val">
             {summary.personalBest}
-            <small>/120</small>
+            <small>/100</small>
           </div>
           <div className="ha-stat-sub">
             {summary.personalBest === summary.latest ? "Also the latest" : "Across all runs"}
@@ -2570,7 +2570,7 @@ export function HistoryScreen() {
         <div className="ha-panel-head">
           <div className="ha-panel-title serif">Total score</div>
           <div className="ha-panel-note">
-            {summary.runCount} {summary.runCount === 1 ? "run" : "runs"} · out of 120
+            {summary.runCount} {summary.runCount === 1 ? "run" : "runs"} · out of 100
           </div>
         </div>
         <TotalChart series={series} />
@@ -3143,7 +3143,7 @@ test("scores a resume end-to-end with stubbed Gemini", async ({ page }) => {
     localStorage.setItem("ha-remember-keys", "true");
     localStorage.setItem("ha-gemini-key", "test-key");
     localStorage.setItem("ha-github-token", "");
-    localStorage.setItem("ha-model", "gemini-2.5-flash");
+    localStorage.setItem("ha-model", "gemini-3.1-flash-lite");
     localStorage.setItem("ha-enable-github", "false");
   });
 
@@ -3289,7 +3289,7 @@ Checked each spec requirement against a concrete task; verified cross-phase type
 | IndexedDB run history (`store.ts` via `idb`) + `pdfBlob` | Phase E ✓ |
 | `localStorage` settings + **remember-key** session-only fallback | Phase E (`settings.ts`, `SettingsProvider`) ✓ |
 | Single combined extraction → score → coach pipeline | Reuses Part 1 `runScoreWithRealDeps`; wired in Phase H ✓ |
-| Results: verdict + scorecard (total /120 + delta) + 4 category rows | Phase I (`ResultsScreen`, `CategoryRow`) ✓ |
+| Results: verdict + scorecard (total /100 + delta) + 4 category rows | Phase I (`ResultsScreen`, `CategoryRow`) ✓ |
 | Signature **revision rail** + run-to-run **diff** | Phase I (`RevisionRail`, `DiffScreen`) ✓ |
 | Coach: "biggest score left on the table" + "small boosts" | Phase I (`CoachSection`) ✓ |
 | Trends: total-score-over-time chart | Phase F (math) + Phase J (`TotalChart`) ✓ |
@@ -3320,5 +3320,3 @@ Checked each spec requirement against a concrete task; verified cross-phase type
 ## Execution
 
 **REQUIRED SUB-SKILL when executing:** Use `superpowers:subagent-driven-development` (recommended — fresh subagent per task with review between) or `superpowers:executing-plans` (inline, batched with checkpoints). Phases are independently committable and ordered so **every commit builds green**: E → F → G → H → I → J → K → L.
-
-

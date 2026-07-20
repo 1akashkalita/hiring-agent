@@ -47,7 +47,7 @@ function makeRun(
   };
 }
 
-// Totals (capped categories + bonus - deductions, clamped 0..120):
+// Totals (capped categories + bonus - deductions, clamped 0..100):
 //   A: 35 + 30 + 25 + 10           = 100
 //   B: 10 + 10 + 10 +  5           =  35
 //   C: 20 + 15 + 10 +  8 + 2 bonus =  55
@@ -119,12 +119,12 @@ describe("summaryStats", () => {
 
 describe("buildLinePath", () => {
   it("maps values to evenly spaced points with padded x and maxY-scaled y", () => {
-    // w=100 h=100 pad=10 maxY=120; innerW=80 over 2 gaps => step 40 => x: 10,50,90
-    // y = h - pad - (v/maxY)*(h-2*pad) = 90 - (v/120)*80
+    // w=100 h=100 pad=10 maxY=100; innerW=80 over 2 gaps => step 40 => x: 10,50,90
+    // y = h - pad - (v/maxY)*(h-2*pad) = 90 - (v/100)*80
     //   v=0   -> 90
-    //   v=60  -> 90 - 40 = 50
-    //   v=120 -> 90 - 80 = 10
-    const out = buildLinePath([0, 60, 120], { w: 100, h: 100, pad: 10, maxY: 120 });
+    //   v=50  -> 90 - 40 = 50
+    //   v=100 -> 90 - 80 = 10
+    const out = buildLinePath([0, 50, 100], { w: 100, h: 100, pad: 10, maxY: 100 });
     expect(out.points).toEqual([
       { x: 10, y: 90 },
       { x: 50, y: 50 },
@@ -134,14 +134,14 @@ describe("buildLinePath", () => {
     expect(out.area).toBe("M10 90 L50 50 L90 10 L90 90 L10 90 Z");
   });
   it("centers a single point at w/2", () => {
-    // x = 50; y = 90 - (42/120)*80 = 90 - 28 = 62
-    const out = buildLinePath([42], { w: 100, h: 100, pad: 10, maxY: 120 });
-    expect(out.points).toEqual([{ x: 50, y: 62 }]);
-    expect(out.line).toBe("M50 62");
-    expect(out.area).toBe("M50 62 L50 90 L50 90 Z");
+    // x = 50; y = 90 - (40/100)*80 = 90 - 32 = 58
+    const out = buildLinePath([40], { w: 100, h: 100, pad: 10, maxY: 100 });
+    expect(out.points).toEqual([{ x: 50, y: 58 }]);
+    expect(out.line).toBe("M50 58");
+    expect(out.area).toBe("M50 58 L50 90 L50 90 Z");
   });
   it("returns empty strings and [] for no values", () => {
-    expect(buildLinePath([], { w: 100, h: 100, pad: 10, maxY: 120 })).toEqual({
+    expect(buildLinePath([], { w: 100, h: 100, pad: 10, maxY: 100 })).toEqual({
       line: "",
       area: "",
       points: [],

@@ -5,6 +5,10 @@ import { dirname, resolve } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = resolve(here, "../test/fixtures/sample-resume.pdf");
 
+// A cold Next.js compile plus three sequential Gemini calls can exceed
+// Playwright's 30-second default even though the scoring flow is healthy.
+test.setTimeout(75_000);
+
 // Schema-valid canned payloads (satisfy JSONResumeSchema / EvaluationSchema / CoachSchema).
 const RESUME = {
   basics: { name: "Test Candidate", email: "test@example.com", profiles: [] },
@@ -56,6 +60,7 @@ test("scores a resume end-to-end with stubbed Gemini", async ({ page }) => {
     let payload: unknown = RESUME;
     if (body.includes('"verdict"')) payload = COACH;
     else if (body.includes('"key_strengths"')) payload = EVAL;
+    await new Promise((resolveRequest) => setTimeout(resolveRequest, 150));
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -68,7 +73,7 @@ test("scores a resume end-to-end with stubbed Gemini", async ({ page }) => {
     localStorage.setItem("ha-remember-keys", "true");
     localStorage.setItem("ha-gemini-key", "test-key");
     localStorage.setItem("ha-github-token", "");
-    localStorage.setItem("ha-model", "gemini-2.5-flash");
+    localStorage.setItem("ha-model", "gemini-3.1-flash-lite");
     localStorage.setItem("ha-enable-github", "false");
   });
 
@@ -79,13 +84,48 @@ test("scores a resume end-to-end with stubbed Gemini", async ({ page }) => {
   await expect(input).toBeAttached();
   await input.setInputFiles(FIXTURE);
 
+  await expect(page.getByText("Finding structured details")).toBeVisible();
+  await expect(page.getByText("Reading public GitHub projects")).toBeVisible();
+
   // The Score flow runs the pipeline then router.push("/results?run=<id>").
   await page.waitForURL("**/results?run=*", { timeout: 60_000 });
 
   // Results screen renders the total and at least one category name.
   // Scope to specific containers: "OPEN_SOURCE" also appears in the coach fix
-  // header, and "77/120" also appears in the revision rail, so unscoped text
+  // header, and "77/100" also appears in the revision rail, so unscoped text
   // locators would resolve to 2 elements (Playwright strict-mode violation).
-  await expect(page.locator(".cats")).toContainText("OPEN_SOURCE");
+  await expect(page.locator(".cats")).toContainText(/open source/i);
   await expect(page.locator(".scorebar .total")).toContainText("77");
+  await expect(page.getByRole("link", { name: "Scored with Gemini 3.1 Flash-Lite" })).toBeVisible();
+  await expect(page.locator("[data-motion-report]")).toBeVisible();
+  await expect(page.locator("[data-motion-score-card]")).toBeVisible();
+  await expect(page.locator("[data-motion-category]")).toHaveCount(4);
+});
+
+test("scores the bundled sample without adding it to history", async ({ page }) => {
+  await page.route("https://generativelanguage.googleapis.com/**", async (route) => {
+    const body = route.request().postData() ?? "";
+    let payload: unknown = RESUME;
+    if (body.includes('"verdict"')) payload = COACH;
+    else if (body.includes('"key_strengths"')) payload = EVAL;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: geminiBody(payload),
+    });
+  });
+
+  await page.addInitScript(() => {
+    localStorage.setItem("ha-remember-keys", "true");
+    localStorage.setItem("ha-gemini-key", "test-key");
+    localStorage.setItem("ha-model", "gemini-3.1-flash-lite");
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Score a sample resume" }).click();
+  await page.waitForURL("**/results?run=*", { timeout: 60_000 });
+  await expect(page.locator(".scorebar .total")).toContainText("77");
+
+  await page.getByRole("link", { name: "History", exact: true }).click();
+  await expect(page.getByText("No history found.")).toBeVisible();
 });

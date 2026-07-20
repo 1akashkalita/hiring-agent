@@ -36,7 +36,7 @@ It also adds two things the CLI doesn't have:
 
 ### Score → Results
 Drop a PDF; the pipeline runs in-browser and produces an editorial scorecard —
-a verdict, the total out of 120 with a delta versus your previous run, four
+a verdict, the total out of 100 with a delta versus your previous run, four
 fairness-constrained category scores with evidence, and the coach's prioritized
 fixes. A "revision rail" on the left tracks every past run.
 
@@ -57,9 +57,8 @@ Upload by drag-and-drop, and compare any two runs category-by-category.
 | ![Score screen](docs/screenshots/01-score.png) | ![Diff screen](docs/screenshots/04-diff.png) |
 
 ### Settings & dark mode
-Bring-your-own keys (kept in-session by default; opt in to remember them),
-optional GitHub enrichment, theme, and one-click "Clear all data." The whole app
-supports light and dark.
+Bring your own Gemini key, choose the scoring model, switch themes, and clear all
+browser data in one click. The whole app supports light and dark.
 
 | Settings | Results (dark) |
 |---|---|
@@ -94,7 +93,7 @@ so the CLI behaves exactly as before.
    key. We never see the key or the resume.
 3. Scores and past resumes are saved in this browser's local cache, not a
    database. **Settings → Clear all data** erases everything instantly.
-4. No tracking, no sign-in; works offline once loaded.
+4. Gemini scoring requires a network connection. Requests go directly from the browser to Google, and public GitHub enrichment runs automatically when the resume contains a GitHub profile.
 
 ---
 
@@ -107,12 +106,13 @@ npm install            # deps only — the pdfjs worker is copied on predev/preb
 
 ## Keys are entered at runtime, not via env vars
 
-There are **no** `GEMINI_API_KEY` / `GITHUB_TOKEN` build-time env vars. Open
-**Settings** in the running app and paste your keys there:
+There are **no** build-time key environment variables. Open **Settings** in the
+running app and paste your key there:
 
 - **Gemini API key** (required) — used for resume extraction, scoring, and coaching.
-- **GitHub token** (optional) — raises the GitHub API rate limit when GitHub
-  enrichment is enabled.
+
+GitHub enrichment uses public API access automatically and does not require a
+GitHub token.
 
 By default keys live only in memory for the session. Tick **Remember keys** to
 persist them to this browser's `localStorage`. "Clear all data" wipes keys,

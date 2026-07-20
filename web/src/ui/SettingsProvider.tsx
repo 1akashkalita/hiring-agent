@@ -15,7 +15,6 @@ const DEFAULTS: StoredSettings = {
   geminiKey: "",
   githubToken: "",
   model: DEFAULT_MODEL,
-  enableGitHub: false,
   rememberKeys: false,
 };
 

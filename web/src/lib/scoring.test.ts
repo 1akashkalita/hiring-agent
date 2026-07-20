@@ -25,7 +25,7 @@ describe("scoring", () => {
   it("caps a category score at its max", () => {
     expect(cappedCategory(ev, "open_source")).toBe(35);
   });
-  it("computes total = capped categories + bonus - deductions, clamped to 120", () => {
+  it("computes total = capped categories + bonus - deductions, clamped to 100", () => {
     // 35 + 22 + 10 + 9 = 76; +5 -3 = 78
     expect(computeTotal(ev)).toBe(78);
   });
@@ -33,9 +33,9 @@ describe("scoring", () => {
     const heavy = { ...ev, deductions: { total: 200, reasons: "" } };
     expect(computeTotal(heavy)).toBe(0);
   });
-  it("clamps a raw total above 120 to 120 (defensive)", () => {
+  it("clamps a raw total above 100 to 100 (defensive)", () => {
     const over = { ...ev, bonus_points: { total: 60, breakdown: "" } };
-    expect(computeTotal(over)).toBe(120);
+    expect(computeTotal(over)).toBe(100);
   });
   it("treats a 0.7 ratio as good (inclusive boundary)", () => {
     expect(statusFor(7, 10)).toBe("good");

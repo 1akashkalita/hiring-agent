@@ -9,7 +9,7 @@ export async function runScoreWithRealDeps(file: File, settings: Settings, onPro
   const ai = makeAI(settings.geminiKey);
   const model = settings.model || DEFAULT_MODEL;
   return scoreResume(file, {
-    settings,
+    settings: { ...settings, model },
     fileName: file.name,
     onProgress,
     signal,

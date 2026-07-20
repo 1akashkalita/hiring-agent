@@ -2,7 +2,7 @@ import type { JSONResume, Evaluation, Coach, RunRecord, GitHubSummary } from "./
 import { normalizeResume } from "./normalize";
 import { MissingKeyError, NotAResumeError } from "./errors";
 
-export type Settings = { geminiKey: string; githubToken: string | null; model: string; enableGitHub: boolean };
+export type Settings = { geminiKey: string; githubToken: string | null; model: string };
 
 export type PipelineDeps = {
   settings: Settings;
@@ -37,23 +37,19 @@ export async function scoreResume(pdf: File | ArrayBuffer, deps: PipelineDeps): 
   deps.onProgress?.("Reading PDF");
   const resumeText = await deps.extractText(pdf);
 
-  // Resume extraction exists only to find the GitHub profile URL, so it runs
-  // only when GitHub enrichment is on. With it off (the default) we skip a whole
-  // LLM call — the scorer and coach read the raw resume text, not parsedResume.
-  let parsedResume: JSONResume = {};
+  // Extraction locates a GitHub profile for automatic enrichment. A missing
+  // profile or failed GitHub request must never prevent the resume from scoring.
+  throwIfAborted(deps.signal);
+  deps.onProgress?.("Extracting resume");
+  const parsedResume = normalizeResume(await deps.runExtraction(resumeText));
   let githubSummary: GitHubSummary | null = null;
-  if (deps.settings.enableGitHub) {
-    throwIfAborted(deps.signal);
-    deps.onProgress?.("Extracting resume");
-    parsedResume = normalizeResume(await deps.runExtraction(resumeText));
-    const url = findGitHubProfileUrl(parsedResume);
-    if (url) {
-      deps.onProgress?.("Enriching from GitHub");
-      try {
-        githubSummary = await deps.fetchGitHub(url);
-      } catch {
-        githubSummary = null; // degrade gracefully
-      }
+  const url = findGitHubProfileUrl(parsedResume);
+  if (url) {
+    deps.onProgress?.("Enriching from GitHub");
+    try {
+      githubSummary = await deps.fetchGitHub(url);
+    } catch {
+      githubSummary = null;
     }
   }
 
@@ -86,6 +82,7 @@ export async function scoreResume(pdf: File | ArrayBuffer, deps: PipelineDeps): 
     parsedResume,
     evaluation,
     coach,
+    model: deps.settings.model,
     githubSummary,
   };
 }

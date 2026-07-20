@@ -1,5 +1,7 @@
 # Project Specific Files
 
+.superpowers/
+.DS_Store
 **/*.pyc
 resume/*.pdf
 run/*.pdf

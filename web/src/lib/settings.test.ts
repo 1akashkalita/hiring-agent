@@ -31,7 +31,6 @@ function base(overrides: Partial<StoredSettings> = {}): StoredSettings {
     geminiKey: "",
     githubToken: "",
     model: DEFAULT_MODEL,
-    enableGitHub: false,
     rememberKeys: false,
     ...overrides,
   };
@@ -51,7 +50,6 @@ describe("settings", () => {
       geminiKey: "",
       githubToken: "",
       model: DEFAULT_MODEL,
-      enableGitHub: false,
       rememberKeys: false,
     });
   });
@@ -61,17 +59,33 @@ describe("settings", () => {
       base({
         geminiKey: "sk-abc",
         githubToken: "ghp_xyz",
-        model: "gemini-2.5-pro",
-        enableGitHub: true,
+        model: "gemini-3.1-pro-preview",
         rememberKeys: true,
       }),
     );
     expect(localStorage.getItem("ha-gemini-key")).toBe("sk-abc");
     expect(localStorage.getItem("ha-github-token")).toBe("ghp_xyz");
     expect(localStorage.getItem("ha-remember-keys")).toBe("true");
-    expect(localStorage.getItem("ha-model")).toBe("gemini-2.5-pro");
-    expect(localStorage.getItem("ha-enable-github")).toBe("true");
+    expect(localStorage.getItem("ha-model")).toBe("gemini-3.1-pro-preview");
     expect(loadSettings().geminiKey).toBe("sk-abc");
+  });
+
+  it("ignores and removes the legacy github enrichment preference", () => {
+    localStorage.setItem("ha-enable-github", "false");
+    expect(loadSettings()).not.toHaveProperty("enableGitHub");
+
+    persistSettings(base());
+    expect(localStorage.getItem("ha-enable-github")).toBeNull();
+  });
+
+  it("migrates a removed saved model to the current default", () => {
+    localStorage.setItem("ha-model", "gemini-2.5-flash");
+    expect(loadSettings().model).toBe(DEFAULT_MODEL);
+  });
+
+  it("does not persist unsupported model values", () => {
+    persistSettings(base({ model: "gemini-2.5-pro" }));
+    expect(localStorage.getItem("ha-model")).toBe(DEFAULT_MODEL);
   });
 
   it("does NOT persist keys when rememberKeys is false but keeps them in session", () => {
@@ -95,11 +109,11 @@ describe("settings", () => {
     expect(loadSettings().geminiKey).toBe("sk-1");
   });
 
-  it("toPipelineSettings maps empty githubToken to null and passes model/enableGitHub", () => {
+  it("toPipelineSettings maps empty githubToken to null and passes the model", () => {
     const out = toPipelineSettings(
-      base({ geminiKey: "k", githubToken: "", model: "m", enableGitHub: true }),
+      base({ geminiKey: "k", githubToken: "", model: "m" }),
     );
-    expect(out).toEqual({ geminiKey: "k", githubToken: null, model: "m", enableGitHub: true });
+    expect(out).toEqual({ geminiKey: "k", githubToken: null, model: "m" });
   });
 
   it("toPipelineSettings passes through a non-empty githubToken", () => {

@@ -1,73 +1,50 @@
-// web/src/ui/TotalChart.tsx
 "use client";
-import type { SeriesPoint } from "../lib/trends";
-import { buildLinePath } from "../lib/trends";
-import { shortDate } from "../lib/format";
 
-const W = 720;
-const H = 260;
-const PAD = 40;
-const MAX_Y = 120;
-const GRID_VALUES = [0, 30, 60, 90, 120];
+import type { SeriesPoint } from "@/lib/trends";
+import { motion, useReducedMotion } from "framer-motion";
+import { buildLinePath } from "@/lib/trends";
+import { shortDate } from "@/lib/format";
+import { MAX_TOTAL } from "@/lib/scoring";
+
+const WIDTH = 720;
+const HEIGHT = 260;
+const PADDING = 40;
+const GRID = [0, 20, 40, 60, 80, MAX_TOTAL];
 
 export function TotalChart({ series }: { series: SeriesPoint[] }) {
-  const values = series.map((p) => p.total);
-  const { line, area, points, yFor } = buildLinePath(values, { w: W, h: H, pad: PAD, maxY: MAX_Y });
-  const first = series[0]?.total ?? 0;
-  const last = series[series.length - 1]?.total ?? 0;
-  const label =
-    series.length === 0
-      ? "Total score over time (no runs yet)"
-      : `Total score over time, from ${first} to ${last} out of 120`;
-
-  // Once there are many runs, labelling every point smears the axis. Keep value
-  // labels on the endpoints + peak, and thin the date labels to ~6 across.
-  const n = series.length;
-  const peakIdx = n ? values.indexOf(Math.max(...values)) : -1;
-  const xStep = Math.max(1, Math.ceil(n / 6));
-  const showVal = (i: number) => n <= 8 || i === 0 || i === n - 1 || i === peakIdx;
-  const showX = (i: number) => n <= 8 || i % xStep === 0 || i === n - 1;
+  const reduceMotion = useReducedMotion();
+  const values = series.map((point) => point.total);
+  const { line, area, points, yFor } = buildLinePath(values, { w: WIDTH, h: HEIGHT, pad: PADDING, maxY: MAX_TOTAL });
+  const peak = values.length ? values.indexOf(Math.max(...values)) : -1;
+  const labelStep = Math.max(1, Math.ceil(series.length / 6));
+  const label = series.length
+    ? `Total score over time, from ${values[0]} to ${values[values.length - 1]} out of ${MAX_TOTAL}`
+    : "Total score over time with no saved runs";
 
   return (
-    <svg className="ha-chart" viewBox={`0 0 ${W} ${H + 12}`} role="img" aria-label={label}>
-      {GRID_VALUES.map((v) => {
-        const y = yFor(v);
+    <svg className="trend-chart" viewBox={`0 0 ${WIDTH} ${HEIGHT + 12}`} role="img" aria-label={label}>
+      {GRID.map((value) => {
+        const y = yFor(value);
         return (
-          <g key={v}>
-            <line className="ha-gridline" x1={PAD} y1={y} x2={W - PAD} y2={y} />
-            <text className="ha-axis-lbl" x={PAD - 10} y={y + 4} textAnchor="end">
-              {v}
-            </text>
+          <g key={value}>
+            <line className="chart-gridline" x1={PADDING} y1={y} x2={WIDTH - PADDING} y2={y} />
+            <text className="chart-label" x={PADDING - 10} y={y + 4} textAnchor="end">{value}</text>
           </g>
         );
       })}
-      {area && <path className="ha-area" d={area} />}
-      {line && <path className="ha-line" d={line} />}
-      {points.map((pt, i) => (
-        <g key={series[i]?.id ?? i}>
-          <circle className="ha-node" cx={pt.x} cy={pt.y} r={4.5} />
-          {showVal(i) && (
-            <text className="ha-node-lbl" x={pt.x} y={pt.y - 12} textAnchor="middle">
-              {values[i]}
-            </text>
-          )}
-          {showX(i) && (
-            <text className="ha-x-lbl" x={pt.x} y={H + 6} textAnchor="middle">
-              {shortDate(series[i].createdAt)}
-            </text>
-          )}
-        </g>
-      ))}
-      <style>{`
-        .ha-chart{width:100%;height:auto;display:block;margin-top:8px}
-        .ha-gridline{stroke:var(--rule);stroke-width:1}
-        .ha-axis-lbl{fill:var(--ink-soft);font-family:var(--font-jetbrains-mono),monospace;font-size:11.5px}
-        .ha-x-lbl{fill:var(--ink-soft);font-family:var(--font-jetbrains-mono),monospace;font-size:12px}
-        .ha-area{fill:var(--brand-tint)}
-        .ha-line{fill:none;stroke:var(--brand);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
-        .ha-node{fill:var(--panel);stroke:var(--brand);stroke-width:2.5}
-        .ha-node-lbl{fill:var(--ink);font-family:var(--font-jetbrains-mono),monospace;font-weight:700;font-size:13.5px}
-      `}</style>
+      {area && <motion.path className="chart-area" data-motion-chart d={area} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1, d: area }} transition={{ duration: reduceMotion ? 0 : 0.4 }} />}
+      {line && <motion.path className="chart-line" data-motion-chart d={line} initial={reduceMotion ? false : { pathLength: 0 }} animate={{ pathLength: 1, d: line }} transition={{ duration: reduceMotion ? 0 : 0.8, ease: "easeOut" }} />}
+      {points.map((point, index) => {
+        const showValue = series.length <= 8 || index === 0 || index === series.length - 1 || index === peak;
+        const showDate = series.length <= 8 || index % labelStep === 0 || index === series.length - 1;
+        return (
+          <g key={series[index]?.id ?? index}>
+            <motion.circle className="chart-node" cx={point.x} cy={point.y} r="4.5" initial={reduceMotion ? false : { scale: 0 }} animate={{ scale: 1 }} transition={{ duration: reduceMotion ? 0 : 0.2, delay: reduceMotion ? 0 : index * 0.045 }} />
+            {showValue && <text className="chart-value" x={point.x} y={point.y - 12} textAnchor="middle">{values[index]}</text>}
+            {showDate && <text className="chart-label" x={point.x} y={HEIGHT + 6} textAnchor="middle">{shortDate(series[index].createdAt)}</text>}
+          </g>
+        );
+      })}
     </svg>
   );
 }

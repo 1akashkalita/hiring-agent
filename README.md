@@ -12,7 +12,7 @@ Upload a resume PDF and get an explainable, fairness-constrained score, a plain-
 
 > **🔗 Try it now: https://fixmyresume.dev** — no install, no sign-up. Bring your own Google Gemini API key.
 >
-> 🔒 Your resume and your API key never leave your browser — there's no backend of ours for them to pass through.
+> 🔒 Your PDF is read locally. Extracted resume text and your API key go directly from your browser to Google Gemini, never through a server operated by this project.
 
 ---
 
@@ -31,11 +31,11 @@ The guiding constraint is **privacy by architecture**. The app is a **static sit
 ## What it does, and why it helps
 
 ### 🔒 100% private — by design, not by promise
-Everything runs client-side. PDF text extraction happens locally (via `pdf.js`); the only network call is from **your** browser to **your** Gemini key. Run history is stored in your browser's **IndexedDB**, settings in `localStorage`. There is no account, no tracking, and **"Clear all data"** wipes everything instantly.
+The app runs client-side. PDF text extraction happens locally via `pdf.js`; scoring requests go directly from your browser to Google Gemini. When a resume includes a GitHub profile, public enrichment calls GitHub's API directly. Run history is stored in browser **IndexedDB** and settings use browser storage. **"Clear all data"** removes the app's saved runs, keys, and settings from that browser.
 **Why it matters:** a resume is sensitive. This is the rare scoring tool you can use without handing your career history (or an API key) to a third party.
 
 ### 📊 An explainable, fairness-constrained score
-Each run produces a **/120 score across four weighted categories** — Open Source (35), Self-Projects (30), Production (25), Technical Skills (10) — plus bonus points and deductions. **Every category shows the evidence behind its number.**
+Each run produces a **/100 score across four weighted categories** — Open Source (35), Self-Projects (30), Production (25), Technical Skills (10) — plus bonus points and deductions, with the final score capped at 100. **Every category shows the evidence behind its number.**
 **Why it matters:** you don't just get a grade, you get the *reasoning* — and the rubric is explicitly **blind to name, gender, school, GPA, and location**, so the score reflects the work, not the person.
 
 ### 🧭 A plain-language resume coach
@@ -50,8 +50,8 @@ Re-score an improved resume and the app charts your **total over time**, draws *
 Pick any two runs and see the **category-by-category delta** (`▲ +5` / `▼ -1`). A commit-log-style "revision rail" tracks every past version of your resume.
 **Why it matters:** it turns resume editing into something like version control — concrete deltas instead of vague impressions.
 
-### 🐙 Optional GitHub enrichment
-Add a GitHub token and the scorer factors in your **public contributions** — merged PRs, open-source vs. personal repos, project quality — and the token raises the GitHub API limit from 60 to 5,000 requests/hour.
+### 🐙 Automatic GitHub enrichment
+When a resume includes a GitHub profile, the scorer automatically factors in **public contributions** — repositories, open-source vs. personal projects, stars, and contributor activity. No GitHub token is required.
 **Why it matters:** for engineers, real code is the strongest signal. This grounds the score in what you've actually shipped.
 
 ### 🎨 Considered, accessible design
@@ -61,16 +61,14 @@ Light and dark themes, a typographic "human document measured by a precise machi
 
 ## Choosing a Gemini model
 
-You bring your own Gemini key, so **you choose the model** from the dropdown in **Settings → *Model*** (it defaults to Flash). A run makes **2 Gemini calls** — scoring → coaching — plus a third **extraction** call only when GitHub enrichment is enabled. All use structured JSON output, which every model below supports.
+You bring your own Gemini key, so **you choose the model** from the dropdown in **Settings → *Model*** (it defaults to Gemini 3.1 Flash-Lite). Every run makes **3 Gemini calls** — profile extraction → scoring → coaching. When a GitHub profile is found, the browser also requests its public data directly from GitHub. All Gemini calls use structured JSON output, which every model below supports.
 
-| Model | Best for in this app | Speed | Relative cost | Why pick it |
-|---|---|:---:|:---:|---|
-| **`gemini-2.5-pro`** | The most accurate scoring & richest coaching | 🐢 Slower | $$$ | Strongest reasoning. Choose it when you want the most careful, defensible evaluation and the most insightful coach notes — e.g. a final pass before applying. |
-| **`gemini-2.5-flash`** ⭐ *default* | Everyday use — the balanced choice | ⚡ Fast | $$ | Near-Pro quality on this structured task at a fraction of the latency and cost. The right pick for almost everyone. |
-| **`gemini-2.5-flash-lite`** | Fast, high-volume, or cost-sensitive runs | ⚡⚡ Fastest | $ | Cheapest and snappiest — great while you're rapidly editing and re-scoring. Coaching nuance is a touch lighter than Flash/Pro. |
-| **`gemini-2.0-flash`** | Fallback / older keys | ⚡ Fast | $ | Previous generation. Use it if your key doesn't yet have access to the 2.5 family. |
-
-**Rule of thumb:** start with **Flash** (the default). Switch to **Pro** when you want the most trustworthy score and the deepest feedback; drop to **Flash-Lite** when you're iterating fast or watching cost. Pick whichever fits from the **Settings → *Model*** dropdown.
+| Display name | Model code | Default |
+|---|---|:---:|
+| Gemini 3 Flash Preview | `gemini-3-flash-preview` | |
+| Gemini 3.1 Flash-Lite | `gemini-3.1-flash-lite` | Yes |
+| Gemini 3.1 Pro Preview | `gemini-3.1-pro-preview` | |
+| Gemini 3.5 Flash | `gemini-3.5-flash` | |
 
 > **A note on scores:** scores are **indicative**. Fix My Resume runs its scoring pipeline in TypeScript with a single combined extraction step, so a number here may differ from a reference run. Use it for relative guidance and trend tracking, not as an absolute hiring signal.
 
@@ -106,11 +104,12 @@ Full development, testing, and deployment docs are in **[`web/README.md`](web/RE
 ### How it works (per run, all in your browser)
 
 1. **PDF → text** — `pdf.js` extracts selectable text locally.
-2. **Scoring** — one Gemini call returns the fairness-constrained `/120` evaluation.
-3. **Coaching** — a final Gemini call produces the prioritized fixes and boosts.
-4. **GitHub enrichment** *(optional)* — when enabled, an extra Gemini call extracts your profile links, then your public repos are fetched and classified to enrich the score.
+2. **Profile extraction** — Gemini locates profile links in the resume.
+3. **GitHub enrichment** — when a GitHub profile is present, its public repositories and contributor activity are fetched automatically.
+4. **Scoring** — Gemini returns the fairness-constrained `/100` evaluation using the available evidence.
+5. **Coaching** — a final Gemini call produces the prioritized fixes and boosts.
 
-Results are saved to IndexedDB so trends and diffs can be computed across runs.
+Uploaded-resume results are saved to IndexedDB so trends and diffs can be computed across runs. The bundled sample is kept only for the current tab and is not added to History.
 
 ---
 

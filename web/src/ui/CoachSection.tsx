@@ -1,90 +1,51 @@
 "use client";
-import { motion } from "framer-motion";
+
 import type { Coach, Evaluation } from "@/lib/schemas";
+import { motion } from "framer-motion";
 import { cappedCategory, CATEGORY_MAX, statusFor } from "@/lib/scoring";
 import { Delta } from "@/ui/Delta";
 import { fadeUp, useStagger } from "@/ui/motion";
 
-export function CoachSection({ coach, evaluation }: { coach: Coach; evaluation: Evaluation }) {
-  return (
-    <motion.section className="coach" {...useStagger()}>
-      <motion.div variants={fadeUp}>
-        <div className="eyebrow">Coach · what to fix next</div>
-        {coach.fixes.length > 0 ? (
-          <>
-            <h2 className="coach-sub serif">Biggest score left on the table</h2>
-            <p className="coach-note">High-impact fixes, in priority order.</p>
-          </>
-        ) : (
-          <>
-            <h2 className="coach-sub serif">Nothing urgent to fix</h2>
-            <p className="coach-note">
-              {coach.boosts.length > 0
-                ? "Your strongest categories are already near the cap — see the small boosts below."
-                : "This resume scores well across the board — no high-impact fixes stand out."}
-            </p>
-          </>
-        )}
-      </motion.div>
+const ACCENT = { good: "var(--success)", warn: "var(--warning)", bad: "var(--danger)" } as const;
 
-      {coach.fixes.map((fix, i) => (
-        <motion.div
-          className="fix"
-          key={i}
-          variants={fadeUp}
-          style={{
-            ["--accent" as string]: `var(--${statusFor(cappedCategory(evaluation, fix.category), CATEGORY_MAX[fix.category])})`,
-          }}
-        >
-          <div className="fix-rule" />
-          <div>
-            <div className="fix-meta mono">
-              Priority {String(fix.priority).padStart(2, "0")} · boosts <b>{fix.category.toUpperCase()}</b>
+export function CoachSection({ coach, evaluation }: { coach: Coach; evaluation: Evaluation }) {
+  const fixesMotion = useStagger();
+  const boostsMotion = useStagger();
+
+  return (
+    <motion.section className="coach-section" {...fixesMotion}>
+      <div className="eyebrow">What to fix next</div>
+      <h2 className="coach-title">{coach.fixes.length ? "Biggest score left on the table" : "Nothing urgent to fix"}</h2>
+      <p className="coach-note">{coach.fixes.length ? "High-impact changes, in priority order." : "This resume is already strong across the rubric."}</p>
+
+      {coach.fixes.map((fix, index) => {
+        const status = statusFor(cappedCategory(evaluation, fix.category), CATEGORY_MAX[fix.category]);
+        return (
+          <motion.article className="coach-fix" key={index} variants={fadeUp} style={{ ["--coach-accent" as string]: ACCENT[status] }}>
+            <span className="coach-rule" />
+            <div>
+              <div className="coach-meta">Priority {String(fix.priority).padStart(2, "0")} · improves <strong>{fix.category.replace(/_/g, " ")}</strong></div>
+              <h3>{fix.title}</h3>
+              <p>{fix.detail}</p>
             </div>
-            <h3 className="fix-title serif">{fix.title}</h3>
-            <p className="fix-text">{fix.detail}</p>
-          </div>
-          <div className="gain">
             <Delta value={fix.estGain} />
-          </div>
-        </motion.div>
-      ))}
+          </motion.article>
+        );
+      })}
 
       {coach.boosts.length > 0 && (
-        <motion.div className="boosts" variants={fadeUp}>
-          <h2 className="coach-sub serif">Small boosts</h2>
-          <p className="coach-note">Polish for categories that are already strong — a point or two each.</p>
-          {coach.boosts.map((b, i) => (
-            <div className="boost" key={i}>
-              <span className="boost-tag mono">{b.category.toUpperCase()}</span>
-              <span className="boost-text serif">{b.text}</span>
-              <span className="boost-gain">
-                <Delta value={b.estGain} />
-              </span>
-            </div>
+        <motion.div className="coach-boosts" {...boostsMotion}>
+          <h2 className="coach-title">Small boosts</h2>
+          <p className="coach-note">Polish for categories that are already strong.</p>
+          {coach.boosts.map((boost, index) => (
+            <motion.div className="coach-boost" key={index} variants={fadeUp}>
+              <span className="coach-boost-tag">{boost.category.replace(/_/g, " ")}</span>
+              <span className="coach-boost-copy">{boost.text}</span>
+              <Delta value={boost.estGain} />
+            </motion.div>
           ))}
         </motion.div>
       )}
-
-      <style>{`
-        .coach{margin-top:36px}
-        .coach .eyebrow{margin-bottom:6px}
-        .coach-sub{font-size:25px;margin:0 0 4px}
-        .coach-note{color:var(--ink-soft);font-size:13.5px;margin:0 0 14px}
-        .fix{display:grid;grid-template-columns:3px 1fr auto;gap:18px;align-items:start;padding:18px 0;border-top:1px solid var(--rule)}
-        .fix-rule{width:3px;border-radius:3px;background:var(--accent,var(--brand));align-self:stretch;min-height:46px}
-        .fix-meta{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft)}
-        .fix-meta b{color:var(--accent,var(--brand));font-weight:700}
-        .fix-title{font-weight:400;font-size:23px;line-height:1.12;margin:2px 0 5px}
-        .fix-text{margin:0;color:var(--ink-soft);font-size:14px;max-width:62ch}
-        .gain{padding-top:2px}
-        .gain .delta{font-size:14px;white-space:nowrap}
-        .boosts{margin-top:32px}
-        .boost{display:grid;grid-template-columns:138px 1fr auto;gap:16px;align-items:baseline;padding:14px 0;border-top:1px solid var(--rule)}
-        .boost-tag{font-size:11px;letter-spacing:.05em;font-weight:700;color:var(--ink-soft)}
-        .boost-text{font-size:17px;line-height:1.3;color:var(--ink)}
-        .boost-gain .delta{font-size:13px;white-space:nowrap}
-      `}</style>
     </motion.section>
   );
 }

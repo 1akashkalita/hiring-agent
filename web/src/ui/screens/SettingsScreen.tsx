@@ -1,304 +1,246 @@
 "use client";
+
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { StoredSettings } from "../../lib/schemas";
-import { DEFAULT_MODEL, GEMINI_MODELS } from "../../lib/gemini";
-import { clearAllData } from "../../lib/settings";
-import { useSettings } from "../SettingsProvider";
-import { ThemeToggle } from "../ThemeToggle";
-import { HowTo } from "../HowTo";
+import Link from "next/link";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import type { StoredSettings } from "@/lib/schemas";
+import { clearAllData } from "@/lib/settings";
+import { DEFAULT_MODEL, GEMINI_MODELS } from "@/lib/gemini";
+import { useSettings } from "@/ui/SettingsProvider";
+import { HowTo } from "@/ui/HowTo";
+import { BackLoopIcon, CheckIcon, ChevronDownIcon, EyeIcon, EyeOffIcon, KeyIcon } from "@/ui/Icons";
+import { fadeUp, useStagger } from "@/ui/motion";
 
 export function SettingsScreen() {
   const { settings, update, reset } = useSettings();
   const [saved, setSaved] = useState(false);
   const [cleared, setCleared] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [showKey, setShowKey] = useState(false);
-  const [showToken, setShowToken] = useState(false);
+  const [modelOpen, setModelOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
+  const pageMotion = useStagger(true);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modelPicker = useRef<HTMLDivElement | null>(null);
+  const modelTrigger = useRef<HTMLButtonElement | null>(null);
+  const modelOptions = useRef<Array<HTMLButtonElement | null>>([]);
 
-  // Clear the pending "Saved" timer if we unmount before it fires.
+  const selectedModel = GEMINI_MODELS.find((model) => model.id === settings.model)
+    ?? GEMINI_MODELS.find((model) => model.id === DEFAULT_MODEL)
+    ?? GEMINI_MODELS[0];
+  const selectedIndex = GEMINI_MODELS.findIndex((model) => model.id === selectedModel.id);
+
   useEffect(() => () => {
     if (savedTimer.current) clearTimeout(savedTimer.current);
   }, []);
 
-  const edit = useCallback(
-    (patch: Partial<StoredSettings>) => {
-      update(patch);
-      setSaved(true);
-      setCleared(false);
-      if (savedTimer.current) clearTimeout(savedTimer.current);
-      savedTimer.current = setTimeout(() => setSaved(false), 1600);
-    },
-    [update]
-  );
+  useEffect(() => {
+    if (!modelOpen) return;
+    const close = (event: PointerEvent) => {
+      if (!modelPicker.current?.contains(event.target as Node)) setModelOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [modelOpen]);
 
-  const onClear = useCallback(async () => {
-    const ok = window.confirm(
-      "Erase all saved runs, resumes, and settings from this browser? This cannot be undone."
-    );
-    if (!ok) return;
-    setBusy(true);
+  const edit = useCallback((patch: Partial<StoredSettings>) => {
+    update(patch);
+    setSaved(true);
+    setCleared(false);
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setSaved(false), 1600);
+  }, [update]);
+
+  const clear = useCallback(async () => {
+    if (!window.confirm("Erase all saved runs, resumes, and settings from this browser? This cannot be undone.")) return;
+    setClearing(true);
     try {
       await clearAllData();
       reset();
       setCleared(true);
     } finally {
-      setBusy(false);
+      setClearing(false);
     }
   }, [reset]);
 
+  const focusOption = useCallback((index: number) => modelOptions.current[index]?.focus(), []);
+  const chooseModel = useCallback((model: string) => {
+    edit({ model });
+    setModelOpen(false);
+    requestAnimationFrame(() => modelTrigger.current?.focus());
+  }, [edit]);
+
+  function onOptionKeyDown(event: React.KeyboardEvent, index: number) {
+    if (event.key === "ArrowDown") { event.preventDefault(); focusOption((index + 1) % GEMINI_MODELS.length); }
+    if (event.key === "ArrowUp") { event.preventDefault(); focusOption((index - 1 + GEMINI_MODELS.length) % GEMINI_MODELS.length); }
+    if (event.key === "Home") { event.preventDefault(); focusOption(0); }
+    if (event.key === "End") { event.preventDefault(); focusOption(GEMINI_MODELS.length - 1); }
+    if (event.key === "Escape") { event.preventDefault(); setModelOpen(false); modelTrigger.current?.focus(); }
+  }
+
   return (
-    <section className="ha-settings">
-      <header className="ha-set-head">
-        <div className="eyebrow">Settings</div>
-        <h1 className="serif ha-set-title">Keys, privacy &amp; appearance.</h1>
-        <p className="ha-set-sub">
-          Everything below is stored only in this browser. Nothing is sent to a server of ours.
-        </p>
-      </header>
+    <motion.section className="settings-layout" {...pageMotion}>
+      <motion.aside className="settings-back" variants={fadeUp}>
+        <Link href="/" className="back-link" aria-label="Back to score a resume">
+          <BackLoopIcon size={18} /> <span>back</span>
+        </Link>
+      </motion.aside>
 
-      <div className="ha-card">
-        <label className="ha-field" htmlFor="ha-gemini-key">
-          <span className="ha-flabel">
-            Gemini API key <span className="ha-req">required</span>
-            <HowTo
-              eyebrow="Gemini API key"
-              title="Get a Gemini API key in about a minute."
-              steps={[
-                <>
-                  Open{" "}
-                  <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
-                    aistudio.google.com/apikey
-                  </a>{" "}
-                  and sign in with your Google account.
-                </>,
-                <>Click <b>Create API key</b>, then pick (or let it create) a Google Cloud project.</>,
-                <>Copy the generated key — it begins with <code>AIza…</code>.</>,
-                <>Paste it into the field here. It is stored only in this browser.</>,
-              ]}
-              foot="Free tier available · the key is sent only to Google, never to us"
-            />
-          </span>
-          <div className="ha-input-wrap">
-            <input
-              id="ha-gemini-key"
-              type={showKey ? "text" : "password"}
-              className="ha-input has-reveal mono"
-              placeholder="AIza…"
-              autoComplete="off"
-              spellCheck={false}
-              value={settings.geminiKey}
-              onChange={(e) => edit({ geminiKey: e.target.value })}
-            />
-            <button
-              type="button"
-              className="ha-reveal mono"
-              onClick={() => setShowKey((v) => !v)}
-              aria-pressed={showKey}
-              aria-label={showKey ? "Hide API key" : "Show API key"}
-            >
-              {showKey ? "Hide" : "Show"}
-            </button>
-          </div>
-          <span className="ha-hint">
-            Scoring calls Google Gemini directly from your browser with this key. Create one at
-            aistudio.google.com — it never leaves this device.
-          </span>
-        </label>
+      <motion.div className="settings-main" variants={fadeUp}>
+        <header className="settings-heading">
+          <div className="page-kicker">Settings</div>
+          <h1>Keys, scoring, and privacy.</h1>
+          <p>Configure the browser-based scoring pipeline. Changes save automatically on this device.</p>
+        </header>
 
-        <label className="ha-field" htmlFor="ha-github-token">
-          <span className="ha-flabel">
-            GitHub token <span className="ha-opt">optional</span>
-            <HowTo
-              eyebrow="GitHub token · permissions"
-              title="Create a read-only GitHub token."
-              steps={[
-                <>
-                  Go to{" "}
-                  <a
-                    href="https://github.com/settings/tokens?type=beta"
-                    target="_blank"
-                    rel="noreferrer"
+        <section className="settings-section">
+          <header className="settings-section-head">
+            <h2>Gemini scoring</h2>
+            <p>Required to extract, score, and coach each resume.</p>
+          </header>
+          <div className="settings-section-body">
+            <label className="field" htmlFor="gemini-key">
+              <span className="field-label-row">
+                <span className="field-label">Gemini API key</span>
+                <HowTo
+                  eyebrow="Gemini API key"
+                  title="Get a key in about a minute."
+                  summary="Google AI Studio creates the key used for direct browser-to-Gemini requests."
+                  icon={<KeyIcon size={20} />}
+                  steps={[
+                    <><strong>Open Google AI Studio.</strong> Sign in with the Google account you want to use for Gemini API access.</>,
+                    <><strong>Create an API key.</strong> Google generates a key that typically begins with <code>AIza</code>.</>,
+                    <><strong>Paste it here.</strong> The key is then used only for requests your browser sends directly to Google Gemini.</>,
+                  ]}
+                  action={{ href: "https://aistudio.google.com/apikey", label: "Open AI Studio" }}
+                  foot={settings.rememberKeys
+                    ? "Remember keys is on, so this key is stored in this browser's localStorage. It is never sent to a Fix My Resume server."
+                    : "Remember keys is off, so this key stays in memory for this tab and clears when the tab closes. It is never sent to a Fix My Resume server."}
+                  trigger={(open) => (
+                    <button type="button" className="how-button" aria-label="How to get a Gemini API key" aria-haspopup="dialog" onClick={open}>
+                      <span className="how-question" aria-hidden="true">?</span> How to get a key
+                    </button>
+                  )}
+                />
+              </span>
+              <span className="input-wrap">
+                <input
+                  id="gemini-key"
+                  type={showKey ? "text" : "password"}
+                  className="text-input"
+                  placeholder="AIza..."
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={settings.geminiKey}
+                  onChange={(event) => edit({ geminiKey: event.target.value })}
+                />
+                <button type="button" className="reveal-button" onClick={() => setShowKey((value) => !value)} aria-label={showKey ? "Hide Gemini API key" : "Show Gemini API key"}>
+                  {showKey ? <EyeOffIcon size={17} /> : <EyeIcon size={17} />}
+                </button>
+              </span>
+              <span className="field-note">Sent directly from this browser to Google only while extracting, scoring, and coaching.</span>
+            </label>
+
+            <div className="field">
+              <span className="field-label" id="model-label">Model</span>
+              <div
+                className="select-wrap"
+                ref={modelPicker}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setModelOpen(false);
+                }}
+              >
+                <button
+                  id="ha-model"
+                  ref={modelTrigger}
+                  type="button"
+                  className="select-trigger"
+                  aria-haspopup="listbox"
+                  aria-expanded={modelOpen}
+                  aria-controls="model-options"
+                  aria-labelledby="model-label ha-model"
+                  onClick={() => setModelOpen((value) => !value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                      event.preventDefault();
+                      setModelOpen(true);
+                      requestAnimationFrame(() => focusOption(selectedIndex));
+                    }
+                  }}
+                >
+                  <span>{selectedModel.label}</span>
+                  <motion.span
+                    className="select-chevron"
+                    animate={{ rotate: modelOpen && !reduceMotion ? 180 : 0 }}
+                    transition={reduceMotion ? { duration: 0 } : { duration: 0.16 }}
                   >
-                    Settings → Developer settings → Personal access tokens
-                  </a>
-                  .
-                </>,
-                <>
-                  This app reads only <b>public</b> profile and repository data, so it needs no
-                  private scopes. For a fine-grained token, set <b>Repository access</b> to
-                  {" "}
-                  <b>Public repositories (read-only)</b> and add no account permissions.
-                </>,
-                <>
-                  A classic token works too — leave every scope <b>unchecked</b> (or tick only{" "}
-                  <code>public_repo</code>). The token just lifts the rate limit from 60 to 5,000
-                  requests/hour.
-                </>,
-                <>Generate it, copy the value (classic tokens start with <code>ghp_…</code>), and paste it here.</>,
-              ]}
-              foot="Optional · used only when GitHub enrichment is on"
-            />
-          </span>
-          <div className="ha-input-wrap">
-            <input
-              id="ha-github-token"
-              type={showToken ? "text" : "password"}
-              className="ha-input has-reveal mono"
-              placeholder="ghp_…"
-              autoComplete="off"
-              spellCheck={false}
-              value={settings.githubToken}
-              onChange={(e) => edit({ githubToken: e.target.value })}
-            />
-            <button
-              type="button"
-              className="ha-reveal mono"
-              onClick={() => setShowToken((v) => !v)}
-              aria-pressed={showToken}
-              aria-label={showToken ? "Hide GitHub token" : "Show GitHub token"}
-            >
-              {showToken ? "Hide" : "Show"}
-            </button>
+                    <ChevronDownIcon size={16} />
+                  </motion.span>
+                </button>
+                <AnimatePresence>
+                  {modelOpen && (
+                    <motion.div
+                      id="model-options"
+                      className="select-menu"
+                      data-motion-menu
+                      role="listbox"
+                      aria-labelledby="model-label"
+                      initial={reduceMotion ? false : { opacity: 0, y: -6, scale: 0.99 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={reduceMotion ? undefined : { opacity: 0, y: -4, scale: 0.99 }}
+                      transition={reduceMotion ? { duration: 0 } : { duration: 0.16, ease: [0.22, 0.61, 0.36, 1] }}
+                    >
+                      {GEMINI_MODELS.map((model, index) => {
+                        const selected = model.id === selectedModel.id;
+                        return (
+                          <button
+                            key={model.id}
+                            ref={(node) => { modelOptions.current[index] = node; }}
+                            type="button"
+                            className={`select-option${selected ? " is-selected" : ""}`}
+                            role="option"
+                            aria-selected={selected}
+                            onClick={() => chooseModel(model.id)}
+                            onKeyDown={(event) => onOptionKeyDown(event, index)}
+                          >
+                            <span>{model.label}</span>{selected && <CheckIcon size={15} />}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              <span className="field-note">Gemini 3.1 Flash-Lite is the default. The menu shows official model names; model codes remain internal.</span>
+            </div>
           </div>
-          <span className="ha-hint">
-            Lets the scorer read your public GitHub signal and raises the rate limit from 60 to
-            5,000 requests/hour. Used only when GitHub enrichment is on.
-          </span>
-        </label>
+        </section>
 
-        <div className="ha-row">
-          <div className="ha-row-text">
-            <span className="ha-flabel">GitHub enrichment</span>
-            <span className="ha-hint">Pull repositories and contributions into the score.</span>
+        <section className="settings-section danger-section">
+          <div className="settings-section-body">
+            <div className="settings-row">
+              <span className="settings-row-copy"><strong>Clear all browser data</strong><span>Erase saved runs, resumes, keys, and settings. Your theme preference is kept.</span></span>
+              <button type="button" className="danger-button" onClick={clear} disabled={clearing}>{clearing ? "Clearing..." : "Clear all data"}</button>
+            </div>
+            {cleared && <div className="field-note" role="status">All browser data cleared.</div>}
           </div>
-          <input
-            type="checkbox"
-            className="ha-check"
-            role="switch"
-            aria-label="Enable GitHub enrichment"
-            checked={settings.enableGitHub}
-            onChange={(e) => edit({ enableGitHub: e.target.checked })}
-          />
-        </div>
+        </section>
 
-        <label className="ha-field" htmlFor="ha-model">
-          <span className="ha-flabel">
-            Model <span className="ha-opt">optional</span>
-          </span>
-          <select
-            id="ha-model"
-            className="ha-select mono"
-            value={settings.model}
-            onChange={(e) => edit({ model: e.target.value })}
-          >
-            {/* Round-trip a previously-saved model that isn't on the list. */}
-            {!GEMINI_MODELS.some((m) => m.id === settings.model) && (
-              <option value={settings.model}>{settings.model}</option>
+        <div className="save-status" aria-live="polite">
+          <AnimatePresence>
+            {saved && (
+              <motion.span
+                initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? undefined : { opacity: 0, y: -3 }}
+                transition={reduceMotion ? { duration: 0 } : { duration: 0.15 }}
+              >
+                Saved
+              </motion.span>
             )}
-            {GEMINI_MODELS.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-          <span className="ha-hint">Defaults to {DEFAULT_MODEL}. All options support JSON output.</span>
-        </label>
-      </div>
-
-      <div className="ha-card">
-        <div className="ha-row">
-          <div className="ha-row-text">
-            <span className="ha-flabel">Remember keys on this device</span>
-            <span className="ha-hint" id="ha-remember-hint">
-              {settings.rememberKeys
-                ? "Keys are saved in this browser's localStorage so you don't re-enter them."
-                : "Keys are kept only for this session (in memory) and cleared when you close the tab."}
-            </span>
-          </div>
-          <input
-            type="checkbox"
-            className="ha-check"
-            role="switch"
-            aria-label="Remember keys on this device"
-            aria-describedby="ha-remember-hint"
-            checked={settings.rememberKeys}
-            onChange={(e) => edit({ rememberKeys: e.target.checked })}
-          />
+          </AnimatePresence>
         </div>
-
-        <div className="ha-row">
-          <div className="ha-row-text">
-            <span className="ha-flabel">Theme</span>
-            <span className="ha-hint">Light or dark. Saved on this device.</span>
-          </div>
-          <ThemeToggle />
-        </div>
-      </div>
-
-      <div className="ha-card ha-danger">
-        <div className="ha-row">
-          <div className="ha-row-text">
-            <span className="ha-flabel">Clear all data</span>
-            <span className="ha-hint">
-              Erase every saved run, resume, and setting from this browser. Your theme is kept.
-            </span>
-          </div>
-          <button type="button" className="ha-btn-danger" onClick={onClear} disabled={busy}>
-            {busy ? "Clearing…" : "Clear all data"}
-          </button>
-        </div>
-        <p className="ha-cleared mono" role="status" aria-live="polite">
-          {cleared ? "✓ All data cleared." : ""}
-        </p>
-      </div>
-
-      <div className="ha-saved mono" aria-live="polite">
-        {saved ? "✓ Saved" : ""}
-      </div>
-
-      <style>{`
-        .ha-settings{display:flex;flex-direction:column;gap:18px;max-width:680px;margin:0 auto;padding:8px 0 40px}
-        .ha-set-head{display:flex;flex-direction:column;gap:6px}
-        .ha-set-title{font-weight:400;font-size:34px;line-height:1.1;margin:2px 0 0}
-        .ha-set-sub{margin:0;font-size:14px;color:var(--ink-soft);line-height:1.5}
-        .ha-card{background:var(--panel);border:1px solid var(--rule);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:20px;box-shadow:var(--shadow)}
-        .ha-field{display:flex;flex-direction:column;gap:7px}
-        .ha-flabel{font-size:13.5px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
-        .ha-req{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--bad);background:var(--bad-tint);border-radius:999px;padding:2px 8px}
-        .ha-opt{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft);background:var(--panel-2);border-radius:999px;padding:2px 8px}
-        .ha-input{width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--rule);border-radius:10px;padding:11px 13px;font-size:14px;color:var(--ink)}
-        .ha-input::placeholder{color:var(--ink-soft);opacity:.85}
-        .ha-input:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-color:var(--brand)}
-        .ha-input-wrap{position:relative;display:flex;align-items:center}
-        .ha-input.has-reveal{padding-right:62px}
-        .ha-reveal{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:var(--ink-soft);font-size:11.5px;font-weight:600;cursor:pointer;padding:6px 8px;border-radius:6px}
-        .ha-reveal:hover{color:var(--ink)}
-        .ha-reveal:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-        .ha-select{width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--rule);border-radius:10px;padding:11px 36px 11px 13px;font-size:14px;color:var(--ink);cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' fill='none' stroke='%238A93A3' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 13px center;background-size:12px}
-        .ha-select:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-color:var(--brand)}
-        .ha-hint{font-size:12.5px;color:var(--ink-soft);line-height:1.5}
-        .ha-row{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
-        .ha-row-text{display:flex;flex-direction:column;gap:5px;flex:1}
-        .ha-check{appearance:none;-webkit-appearance:none;position:relative;width:46px;height:26px;border-radius:999px;border:1px solid var(--rule);background:var(--panel-2);cursor:pointer;flex:none;margin-top:2px;transition:background .18s ease}
-        .ha-check::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--panel);box-shadow:var(--shadow);transition:left .18s ease}
-        .ha-check:checked{background:var(--brand)}
-        .ha-check:checked::after{left:22px}
-        .ha-check:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
-        .ha-danger{border-color:var(--bad-tint)}
-        .ha-btn-danger{flex:none;background:var(--bad-tint);color:var(--bad);border:1px solid var(--bad);border-radius:10px;padding:9px 15px;font-size:13px;font-weight:600;cursor:pointer}
-        .ha-btn-danger:hover{background:var(--bad);color:var(--paper)}
-        .ha-btn-danger:focus-visible{outline:2px solid var(--bad);outline-offset:3px}
-        .ha-cleared{margin:0;font-size:12.5px;color:var(--good-ink)}
-        .ha-saved{min-height:18px;font-size:12.5px;color:var(--good-ink);text-align:right;transition:opacity .2s ease}
-        @media (prefers-reduced-motion: reduce){
-          .ha-check,.ha-check::after,.ha-saved{transition:none}
-        }
-        @media (max-width:560px){
-          .ha-set-title{font-size:28px}
-          .ha-card{padding:16px}
-        }
-      `}</style>
-    </section>
+      </motion.div>
+    </motion.section>
   );
 }

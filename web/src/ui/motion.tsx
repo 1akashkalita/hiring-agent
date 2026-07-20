@@ -1,5 +1,6 @@
 "use client";
-import { motion, useReducedMotion, type MotionProps, type Variants } from "framer-motion";
+import type { ReactNode } from "react";
+import { AnimatePresence, motion, useReducedMotion, type MotionProps, type Variants } from "framer-motion";
 import Link from "next/link";
 
 /**
@@ -68,3 +69,22 @@ export function useHoverLift(): MotionProps {
 
 /** Next.js <Link> that accepts motion props (hover/tap, variants). */
 export const MotionLink = motion.create(Link);
+
+/** Keyed loading/empty/content replacement with a short, consistent transition. */
+export function MotionState({ state, children }: { state: string; children: ReactNode }) {
+  const reduce = useReducedMotion();
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={state}
+        data-motion-state={state}
+        initial={reduce ? false : { opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={reduce ? undefined : { opacity: 0, y: -3 }}
+        transition={reduce ? { duration: 0 } : { duration: 0.18, ease: EASE }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+}

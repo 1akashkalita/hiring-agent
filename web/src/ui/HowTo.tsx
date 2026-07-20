@@ -1,23 +1,28 @@
 "use client";
+
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
-/**
- * A modal with numbered, step-by-step instructions, opened by a trigger. The
- * default trigger is a small "how?" link; pass `trigger` to supply your own
- * (e.g. PrivacyChip's chip button) and reuse the whole dialog.
- */
+type DialogAction = { href: string; label: string };
+
 export function HowTo({
   eyebrow,
   title,
+  summary,
+  icon,
   steps,
   foot,
+  action,
   trigger,
 }: {
   eyebrow: string;
   title: string;
+  summary?: ReactNode;
+  icon?: ReactNode;
   steps: ReactNode[];
-  foot?: string;
+  foot?: ReactNode;
+  action?: DialogAction;
   trigger?: (open: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -26,48 +31,40 @@ export function HowTo({
   const triggerRef = useRef<HTMLElement | null>(null);
   const reduce = useReducedMotion();
 
-  // While open: lock background scroll, keep focus inside the dialog (Esc to
-  // close, Tab wraps), and restore focus to the trigger on close. This makes the
-  // aria-modal="true" contract real for keyboard and screen-reader users.
   useEffect(() => {
     if (!open) return;
-    triggerRef.current = (document.activeElement as HTMLElement) ?? null;
-    const prevOverflow = document.body.style.overflow;
+    triggerRef.current = document.activeElement as HTMLElement | null;
+    const oldOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const focusables = (): HTMLElement[] =>
+    const focusable = () =>
       dialogRef.current
-        ? Array.from(
-            dialogRef.current.querySelectorAll<HTMLElement>(
-              'a[href],button:not([disabled]),input,select,textarea,[tabindex]:not([tabindex="-1"])',
-            ),
-          )
+        ? Array.from(dialogRef.current.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])'))
         : [];
-    focusables()[0]?.focus();
+    requestAnimationFrame(() => focusable()[0]?.focus());
 
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
         setOpen(false);
         return;
       }
-      if (e.key === "Tab") {
-        const items = focusables();
-        if (items.length === 0) return;
-        const first = items[0];
-        const last = items[items.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
-    document.addEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-      triggerRef.current?.focus?.();
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = oldOverflow;
+      triggerRef.current?.focus();
     };
   }, [open]);
 
@@ -76,58 +73,65 @@ export function HowTo({
       {trigger ? (
         trigger(() => setOpen(true))
       ) : (
-        <button
-          type="button"
-          className="ha-how"
-          aria-haspopup="dialog"
-          onClick={() => setOpen(true)}
-        >
-          how?
+        <button type="button" className="how-button" aria-haspopup="dialog" onClick={() => setOpen(true)}>
+          <span className="how-question" aria-hidden="true">?</span>
+          How to get a key
         </button>
       )}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            className="ha-overlay"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setOpen(false);
-            }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: reduce ? 0 : 0.18 }}
-          >
+
+      {typeof document !== "undefined" && createPortal(
+        <AnimatePresence>
+          {open && (
             <motion.div
-              ref={dialogRef}
-              className="ha-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby={titleId}
-              initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 8 }}
-              animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
-              exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.98, y: 6 }}
-              transition={{ duration: reduce ? 0 : 0.2, ease: [0.22, 0.61, 0.36, 1] }}
+              className="dialog-backdrop"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) setOpen(false);
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: reduce ? 0 : 0.15 }}
             >
-              <button className="ha-modal-x" aria-label="Close" onClick={() => setOpen(false)}>
-                ×
-              </button>
-              <div className="eyebrow">{eyebrow}</div>
-              <h2 id={titleId} className="serif ha-modal-title">
-                {title}
-              </h2>
-              <ul className="ha-plist">
-                {steps.map((step, i) => (
-                  <li key={i}>
-                    <span className="ha-pk mono">{String(i + 1).padStart(2, "0")}</span>
-                    <span>{step}</span>
-                  </li>
-                ))}
-              </ul>
-              {foot && <p className="ha-modal-foot mono">{foot}</p>}
+              <motion.div
+                ref={dialogRef}
+                className="dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                initial={reduce ? false : { opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.99 }}
+                transition={{ duration: reduce ? 0 : 0.18 }}
+              >
+                <button type="button" className="dialog-close" aria-label="Close" onClick={() => setOpen(false)}>
+                  ×
+                </button>
+                {icon && <div className="dialog-icon">{icon}</div>}
+                <div className="eyebrow">{eyebrow}</div>
+                <h2 id={titleId} className="dialog-title">{title}</h2>
+                {summary && <p className="dialog-summary">{summary}</p>}
+                <ol className="dialog-steps">
+                  {steps.map((step, index) => (
+                    <li className="dialog-step" key={index}>
+                      <span className="dialog-number">{String(index + 1).padStart(2, "0")}</span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+                {action && (
+                  <div className="dialog-actions">
+                    <a className="button-primary" href={action.href} target="_blank" rel="noreferrer">
+                      {action.label}
+                    </a>
+                  </div>
+                )}
+                {foot && <p className="dialog-footer">{foot}</p>}
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </>
   );
 }

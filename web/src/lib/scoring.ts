@@ -8,7 +8,7 @@ export const CATEGORY_MAX: Record<CategoryKey, number> = {
   technical_skills: 10,
 };
 
-export const MAX_TOTAL = 120;
+export const MAX_TOTAL = 100;
 export type Status = "good" | "warn" | "bad";
 
 export function cappedCategory(ev: Evaluation, key: CategoryKey): number {
@@ -19,7 +19,8 @@ export function cappedCategory(ev: Evaluation, key: CategoryKey): number {
 export function computeTotal(ev: Evaluation): number {
   const categories = CATEGORY_KEYS.reduce((sum, k) => sum + cappedCategory(ev, k), 0);
   const raw = categories + ev.bonus_points.total - ev.deductions.total;
-  // Clamp to [0, 120] per the scoring spec. Python's evaluator.py defines
+  // Clamp to [0, 100] per the scoring spec. Bonus points can offset category
+  // gaps, but they do not raise the rubric's 100-point ceiling. Python's evaluator.py defines
   // MIN_FINAL_SCORE = -20 but never enforces it (dead code), so 0 is the
   // effective floor in score.py's reporting.
   return Math.max(0, Math.min(MAX_TOTAL, raw));

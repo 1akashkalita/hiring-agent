@@ -1,9 +1,25 @@
 import { describe, it, expect, vi } from "vitest";
 import { z } from "zod";
-import { callGeminiJSON } from "./gemini";
+import { callGeminiJSON, DEFAULT_MODEL, GEMINI_MODELS, geminiModelLabel, isSupportedGeminiModel } from "./gemini";
 import { RateLimitError, ModelOverloadedError, ModelOutputError } from "./errors";
 
 const schema = z.object({ ok: z.boolean() });
+
+describe("Gemini model catalog", () => {
+  it("offers only the supported models and defaults to Gemini 3.1 Flash-Lite", () => {
+    expect(GEMINI_MODELS.map((model) => model.id)).toEqual([
+      "gemini-3-flash-preview",
+      "gemini-3.1-flash-lite",
+      "gemini-3.1-pro-preview",
+      "gemini-3.5-flash",
+    ]);
+    expect(DEFAULT_MODEL).toBe("gemini-3.1-flash-lite");
+    expect(isSupportedGeminiModel(DEFAULT_MODEL)).toBe(true);
+    expect(isSupportedGeminiModel("gemini-2.5-flash")).toBe(false);
+    expect(geminiModelLabel(DEFAULT_MODEL)).toBe("Gemini 3.1 Flash-Lite");
+    expect(geminiModelLabel("removed-model")).toBeNull();
+  });
+});
 
 function fakeAI(responses: Array<() => Promise<{ text: string }>>) {
   let i = 0;
