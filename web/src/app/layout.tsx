@@ -1,26 +1,14 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
-import { Familjen_Grotesk, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { Familjen_Grotesk } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { AppShell } from "@/ui/AppShell";
 import { ThemeProvider } from "@/ui/ThemeProvider";
 import { SettingsProvider } from "@/ui/SettingsProvider";
 
-const display = Familjen_Grotesk({
+const mainFont = Familjen_Grotesk({
   subsets: ["latin"],
-  variable: "--font-display",
-  display: "swap",
-});
-const body = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-body",
-  display: "swap",
-});
-const mono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-mono",
+  variable: "--font-main",
   display: "swap",
 });
 
@@ -57,7 +45,7 @@ const themeBootstrap = `(function(){try{var t=localStorage.getItem('ha-theme');d
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${display.variable} ${body.variable} ${mono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={mainFont.variable}>
       <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
       <body>
         <ThemeProvider>
